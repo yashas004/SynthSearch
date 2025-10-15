@@ -34,8 +34,8 @@ async function callGoogleGemini(question, context) {
   try {
     console.log('🔄 Calling Google Gemini API with question:', question.substring(0, 50) + '...');
 
-    // Use the most reliable Gemini API endpoint
-    const url = `https://generativelanguage.googleapis.com/v1/GLM-1.5-flash:generateContent?key=${apiKey}`;
+    // Use the correct Google Gemini API endpoint
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [{

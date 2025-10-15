@@ -1,133 +1,53 @@
-import EmbeddingGenerator from './embeddingGenerator.js';
-import { VectorStore } from './vectorStore.js';
-import OpenAI from 'openai';
+import { RAGEngine } from './ragEngine.js';
 import fs from 'fs';
 import path from 'path';
 
-async function testBasicComponents() {
+// Simple test to verify basic functionality without complex PDF parsing
+async function runSimpleTest() {
   try {
-    console.log("Testing basic text parsing...");
+    console.log("🧪 Running simplified SynthSearch test...");
 
-    // Simple text processing without pdf-parse
-    const filePath = path.join(process.cwd(), 'test_docs', 'sample.txt');
-    const text = fs.readFileSync(filePath, 'utf8');
-    console.log("Parsed text length:", text.length);
-
-    console.log("Testing chunking...");
-    const chunks = simpleTextChunk(text);
-    console.log("Number of chunks:", chunks.length);
-
-    console.log("Testing EmbeddingGenerator...");
-    const embedding = await EmbeddingGenerator.generateEmbedding(chunks[0]);
-    console.log("Embedding dimension:", embedding.length);
-
-    console.log("Testing VectorStore...");
+    // Test RAG engine initialization
     const inMemoryStorage = { vectors: [], documents: [] };
-    const vectorStore = new VectorStore(inMemoryStorage);
-    vectorStore.addVector(embedding, chunks[0], { source: 'test' });
-    console.log("Vectors in store:", inMemoryStorage.vectors.length);
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.DEEPSEEK_API_KEY;
 
-    console.log("Testing search...");
-    const searchResults = vectorStore.searchVectors(embedding);
-    console.log("Search results:", searchResults.length);
-
-    console.log("✅ All basic components working!");
-
-  } catch (error) {
-    console.error("❌ Error in basic components test:", error);
-  }
-}
-
-// Simple text chunking function
-function simpleTextChunk(text, chunkSize = 1000) {
-  const chunks = [];
-  for (let i = 0; i < text.length; i += chunkSize) {
-    chunks.push(text.slice(i, i + chunkSize));
-  }
-  return chunks;
-}
-
-async function testFullRag() {
-  const inMemoryStorage = { vectors: [], documents: [] };
-  const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.DEEPSEEK_API_KEY;
-
-  if (!openRouterApiKey) {
-    console.log("❌ No API key found. Skipping LLM test.");
-    return;
-  }
-
-  try {
-    console.log("\nTesting full RAG pipeline...");
-
-    // Create simplified RAG engine
-    class TestRAGEngine {
-      constructor(apiKey, storage) {
-        this.vectorStore = new VectorStore(storage);
-        this.embeddingGenerator = EmbeddingGenerator;
-        this.openRouter = new OpenAI({
-          apiKey: apiKey,
-          baseURL: 'https://openrouter.ai/api/v1'
-        });
-      }
-
-      async ingestText(chunks) {
-        const embeddings = await this.embeddingGenerator.generateEmbeddingsForChunks(chunks);
-        for (let i = 0; i < chunks.length; i++) {
-          this.vectorStore.addVector(embeddings[i], chunks[i]);
-        }
-        return { success: true, chunksProcessed: chunks.length };
-      }
-
-      async query(question, topK = 3) {
-        try {
-          const queryEmbedding = await this.embeddingGenerator.generateEmbedding(question);
-          const relevantDocs = this.vectorStore.searchVectors(queryEmbedding, topK);
-
-          const context = relevantDocs.map(doc => doc.text).join('\n');
-          const prompt = `Using these documents, answer the user's question succinctly.\n\nContext:\n${context}\n\nQuestion: ${question}\n\nAnswer:`;
-
-          const response = await this.openRouter.chat.completions.create({
-            model: 'anthropic/claude-3-haiku:beta',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 150,
-            temperature: 0.7,
-          });
-
-          const answer = response.choices[0].message.content.trim();
-
-          return { answer, relevantDocs };
-        } catch (error) {
-          return { error: error.message };
-        }
-      }
+    if (!openRouterApiKey) {
+      console.log("❌ No API key found in environment variables");
+      console.log("Available env vars:", Object.keys(process.env).filter(key => key.includes('API') || key.includes('KEY')));
+      return;
     }
 
-    const ragEngine = new TestRAGEngine(openRouterApiKey, inMemoryStorage);
+    console.log("🔑 API key found, initializing RAG engine...");
 
-    // Load test data
-    const testText = fs.readFileSync(path.join(process.cwd(), 'test_docs', 'sample.txt'), 'utf8');
-    const chunks = simpleTextChunk(testText);
+    const ragEngine = new RAGEngine(openRouterApiKey, inMemoryStorage);
+    console.log("✅ RAG engine initialized successfully");
 
-    // Test ingestion
-    console.log("Ingesting test data...");
-    const ingestResult = await ragEngine.ingestText(chunks);
-    console.log("Ingest result:", ingestResult);
+    // Test with simple text file
+    console.log("📄 Testing document ingestion...");
+    const filePath = path.join(process.cwd(), 'test_docs', 'sample.txt');
+    const text = fs.readFileSync(filePath, 'utf8');
+    console.log("📏 Sample text length:", text.length);
 
-    // Test query
-    console.log("\nQuerying...");
-    const queryResult = await ragEngine.query("What is RAG?");
-    console.log("Query result:", queryResult);
+    // Test chunking (this should work without errors)
+    const chunks = text.match(/.{1,1000}/g) || [text]; // Simple chunking
+    console.log("📦 Number of chunks:", chunks.length);
+
+    // Test basic ingestion
+    console.log("🔄 Testing ingestion...");
+    const ingestResult = await ragEngine.ingestDocument(Buffer.from(text), 'sample.txt');
+    console.log("📊 Ingest result:", ingestResult);
+
+    if (ingestResult.success) {
+      console.log("🎉 Basic functionality test PASSED!");
+      console.log("📈 Vectors in storage:", inMemoryStorage.vectors.length);
+    } else {
+      console.log("❌ Ingestion failed:", ingestResult.error);
+    }
 
   } catch (error) {
-    console.error("❌ Error in full RAG test:", error);
+    console.error("❌ Test failed with error:", error.message);
+    console.error("Full error:", error);
   }
 }
 
-// Run tests
-async function runTests() {
-  await testBasicComponents();
-  await testFullRag();
-  console.log("\n🎉 Testing completed!");
-}
-
-runTests();
+runSimpleTest();

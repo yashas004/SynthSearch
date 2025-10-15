@@ -29,13 +29,20 @@ async function getEmbeddings(text) {
 }
 
 async function callOpenRouter(question, context) {
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.DEEPSEEK_API_KEY;
+
+  if (!apiKey) {
+    console.error('No OpenRouter API key found in environment variables');
+    return 'SynthSearch is not properly configured. Please check API key setup.';
+  }
+
   try {
-    console.log('Making OpenRouter API call...');
+    console.log('Making OpenRouter API call with key starting with:', apiKey.substring(0, 20) + '...');
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer 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',
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://synthsearch.vercel.app',
         'X-Title': 'SynthSearch AI'
@@ -44,37 +51,66 @@ async function callOpenRouter(question, context) {
         model: 'anthropic/claude-3-haiku:beta',
         messages: [{
           role: 'user',
-          content: `Hello! I am SynthSearch, an AI-powered knowledge engine. Please answer this question in a helpful way: "${question}"`
+          content: `Hello! I am SynthSearch, an AI-powered knowledge engine. Please answer this question in a helpful and direct way: "${question}"`
         }],
         max_tokens: 500,
         temperature: 0.7,
+        max_tokens: 300,
       })
     });
 
-    console.log('Response status:', response.status);
+    console.log('OpenRouter Response status:', response.status);
 
     if (!response.ok) {
-      console.error('OpenRouter API error:', response.status, response.statusText);
       const errorText = await response.text();
-      console.error('Error details:', errorText);
-      return 'I apologize, but there seems to be an issue with the API connection. Please try again.';
+      console.error('OpenRouter API error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+
+      if (response.status === 401) {
+        return 'API key is invalid or expired. Please check your OpenRouter API key.';
+      } else if (response.status === 429) {
+        return 'API rate limit exceeded. Please try again in a moment.';
+      } else if (response.status === 400) {
+        return 'Invalid request. Please check your question and try again.';
+      } else {
+        return `API error (${response.status}): ${errorText.substring(0, 100)}`;
+      }
     }
 
     const data = await response.json();
-    console.log('API Response received');
+    console.log('Full API Response:', JSON.stringify(data, null, 2));
 
     if (data.choices && data.choices[0] && data.choices[0].message) {
       const answer = data.choices[0].message.content;
-      console.log('Got answer:', answer.substring(0, 100) + '...');
-      return answer;
+      console.log('✅ Successfully extracted answer from response');
+      if (answer && answer.length > 10) {
+        return answer;
+      } else {
+        console.warn('Answer too short or empty:', answer);
+        return 'I received a very short response. Please try rephrasing your question.';
+      }
     } else {
-      console.error('Unexpected API response structure:', JSON.stringify(data, null, 2));
-      return 'I received a response but couldn\'t parse it properly. The API might be experiencing issues.';
+      console.error('Unexpected API response structure. Available data:', Object.keys(data));
+      return `API returned unexpected format. Error details: ${JSON.stringify(data)}`;
     }
 
   } catch (error) {
-    console.error('OpenRouter API call failed:', error);
-    return `I encountered an error while processing your question. This is likely a temporary issue - please try asking again in a moment. Error: ${error.message}`;
+    console.error('OpenRouter API call failed:', {
+      message: error.message,
+      stack: error.stack?.substring(0, 200)
+    });
+
+    // Provide more helpful error messages based on error type
+    if (error.message.includes('fetch')) {
+      return 'Network error connecting to OpenRouter. Please check your internet connection.';
+    } else if (error.message.includes('timeout')) {
+      return 'Request timed out. Please try again.';
+    } else {
+      return `Unexpected error: ${error.message.substring(0, 100)}`;
+    }
   }
 }
 

@@ -1,16 +1,40 @@
 import DocumentParser from './docParser.js';
 import EmbeddingGenerator from './embeddingGenerator.js';
 import { VectorStore } from './vectorStore.js';
-import OpenAI from 'openai';
 
 class RAGEngine {
-  constructor(openRouterApiKey, inMemoryStorage) {
+  constructor(apiKey, inMemoryStorage) {
     this.vectorStore = new VectorStore(inMemoryStorage);
     this.embeddingGenerator = EmbeddingGenerator;
-    this.openRouter = new OpenAI({
-      apiKey: openRouterApiKey,
-      baseURL: 'https://openrouter.ai/api/v1'
-    });
+    this.apiKey = apiKey;
+  }
+
+  async callOpenRouter(messages) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'anthropic/claude-3-haiku:beta',
+          messages: messages,
+          max_tokens: 300,
+          temperature: 0.3,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenRouter API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content.trim();
+    } catch (error) {
+      console.error('OpenRouter API call failed:', error);
+      throw error;
+    }
   }
 
   async ingestDocument(fileBuffer, fileName) {
@@ -76,7 +100,10 @@ class RAGEngine {
 
     const context = relevantDocs.map(doc => doc.text).join('\n\n');
 
-    const prompt = `You are an AI assistant helping users find information in their documents.
+    const messages = [
+      {
+        role: 'user',
+        content: `You are an AI assistant helping users find information in their documents.
 
 Using the provided document excerpts, answer the user's question accurately and concisely. If the information isn't available in the context, say so clearly.
 
@@ -85,23 +112,13 @@ ${context}
 
 User question: ${question}
 
-Answer based only on the document content provided. Be helpful and direct.`;
+Answer based only on the document content provided. Be helpful and direct.`
+      }
+    ];
 
     try {
       console.log('Calling OpenRouter API...');
-      const response = await this.openRouter.chat.completions.create({
-        model: 'anthropic/claude-3-haiku:beta',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 300,
-        temperature: 0.3,
-      });
-
-      const answer = response.choices[0].message.content.trim();
+      const answer = await this.callOpenRouter(messages);
       console.log('Generated answer successfully');
       return answer;
     } catch (error) {

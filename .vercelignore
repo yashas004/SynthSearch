@@ -1,0 +1,11 @@
+node_modules/
+.env
+.git/
+.gitignore
+uploads/
+README.md
+.git/
+.gitignore
+test_docs/
+test_query.js
+.env.example

@@ -18,12 +18,43 @@ A search engine that provides synthesized answers using Retrieval-Augmented Gene
 - Simple JSON-based vector storage
 
 
-If you are evaluating this project, note the following:
+## Deployment
 
-- The application runs on port 3000 by default
-- It requires an OpenRouter API key for LLM functionality
-- Documents are processed and stored as vector embeddings
-- A web interface is available at the root URL
+### GitHub
+All code has been pushed to: https://github.com/yashas004/SynthSearch
+
+### Vercel Deployment
+SynthSearch is configured for Vercel deployment:
+
+1. **Requirements**: OpenRouter API key for LLM functionality
+2. **Configuration**: `vercel.json` and `.vercelignore` files included
+3. **Build**: No build step required (Node.js serverless functions)
+
+**To deploy:**
+```bash
+# Install Vercel CLI (already done)
+npm install -g vercel
+
+# Deploy
+vercel --prod
+
+# Set environment variable when prompted
+# OPENROUTER_API_KEY=your-openrouter-api-key-here
+```
+
+### Local Development
+```bash
+# Install dependencies
+npm install
+
+# Set API key
+export OPENROUTER_API_KEY="your-key-here"
+
+# Start development server
+npm start
+
+# Access at: http://localhost:3000
+```
 
 ## Usage
 
@@ -48,8 +79,6 @@ Content-Type: application/json
 ```
 
 ### Web Interface
-
-Open `http://localhost:3000` in your browser to access the web interface.
 
 1. **Document Ingestion**: Upload text or PDF files to build your knowledge base
 2. **Query**: Ask questions about your ingested documents

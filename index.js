@@ -29,7 +29,7 @@ async function getEmbeddings(text) {
 }
 
 async function callOpenRouter(question, context) {
-  const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.DEEPSEEK_API_KEY;
+  const openRouterApiKey = "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";
   if (!openRouterApiKey) return 'API key not configured';
 
   try {
@@ -43,18 +43,20 @@ async function callOpenRouter(question, context) {
         model: 'anthropic/claude-3-haiku:beta',
         messages: [{
           role: 'user',
-          content: `Based on this context, answer the question: "${question}". Context: ${context}`
+          content: `You are SynthSearch, an AI-powered knowledge engine. Answer this question: "${question}". Be helpful and direct.`
         }],
-        max_tokens: 200,
-        temperature: 0.3,
+        max_tokens: 300,
+        temperature: 0.7,
       })
     });
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || 'No answer generated';
+    console.log('OpenRouter response status:', response.status);
+    console.log('OpenRouter response data:', JSON.stringify(data, null, 2));
+    return data.choices?.[0]?.message?.content || 'SynthSearch is working but could not generate a response.';
   } catch (error) {
     console.error('OpenRouter error:', error);
-    return 'API call failed';
+    return 'SynthSearch encountered an error. Please try again.';
   }
 }
 

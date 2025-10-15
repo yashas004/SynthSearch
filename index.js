@@ -29,31 +29,59 @@ async function getEmbeddings(text) {
 }
 
 async function callGoogleGemini(question, context) {
-  console.log('SynthSearch AI Response System - Processing question:', question);
+  const apiKey = "AIzaSyCF0s8Djo4W1AHZUfn9wCvj23_raf0-Nks";
 
-  // For now, provide simulated AI responses to demonstrate the working system
-  // Real AI integration would require proper API setup and working keys
+  try {
+    console.log('Calling Gemini API for question:', question);
 
-  const lowerQuestion = question.toLowerCase();
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  if (lowerQuestion.includes('scope of work') || lowerQuestion.includes('scope')) {
-    return "Based on the knowledge-base search engine documentation, the scope of work typically includes:\n\n• Document ingestion and processing capabilities\n• AI-powered question answering\n• Vector-based semantic search functionality\n• Modern serverless architecture deployment\n• PDF and text document support\n• Real-time query processing and responses";
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `You are SynthSearch, a helpful AI-powered knowledge engine. Answer this question clearly and comprehensively: ${question}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 500,
+          topP: 0.8,
+          topK: 10
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Gemini API Error:', errorData);
+      throw new Error(`API error: ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+
+    if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+      const answer = data.candidates[0].content.parts[0].text.trim();
+      console.log('Gemini API response received');
+      return answer;
+    } else {
+      throw new Error('No valid response from Gemini API');
+    }
+
+  } catch (error) {
+    console.error('Gemini API call failed:', error.message);
+
+    // Fallback to basic understanding for system knowledge
+    if (context && typeof context === 'string') {
+      return `I understand you asked about "${question}", but I'm having trouble with the AI API right now. SynthSearch is designed to provide intelligent answers about uploaded documents using advanced AI technology.`;
+    }
+
+    return `I'm SynthSearch, your AI-powered knowledge engine. I can help answer questions about uploaded documents, explain how our AI works, and provide information about document processing capabilities. What would you like to know about?`;
   }
-
-  if (lowerQuestion.includes('how') && lowerQuestion.includes('work')) {
-    return "SynthSearch works by:\n\n1. Processing uploaded documents (PDF/text)\n2. Creating intelligent document embeddings\n3. Storing content in vector database\n4. Using AI to understand and answer questions\n5. Providing semantically relevant responses based on document content";
-  }
-
-  if (lowerQuestion.includes('ai') || lowerQuestion.includes('artificial intelligence')) {
-    return "SynthSearch uses advanced AI technologies including:\n\n• Machine Learning models for document understanding\n• Natural Language Processing for query comprehension\n• Vector similarity algorithms for content matching\n• Large Language Models for generating contextual responses\n• Serverless computing for scalable deployment";
-  }
-
-  if (lowerQuestion.includes('document') || lowerQuestion.includes('pdf')) {
-    return "SynthSearch supports document processing including:\n\n• PDF document parsing and text extraction\n• Plain text file processing\n• Automatic content chunking for optimal retrieval\n• Metadata extraction and indexing\n• Multiple document format support\n• Secure file upload and handling";
-  }
-
-  // Default fallback response
-  return `Thank you for using SynthSearch! You've asked: "${question}".\n\nThis is a demonstration of the AI-powered knowledge search functionality. When properly configured with API keys, SynthSearch can provide intelligent answers based on uploaded documents.\n\nThe system is successfully deployed and ready for production use with proper API integration.`;
 }
 
 export default async function handler(req, res) {

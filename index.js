@@ -28,8 +28,9 @@ const upload = multer({
 });
 
 // Initialize RAG Engine
+const ragEngineEnabled = true; // Enable RAG system
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "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";
-const ragEngine = new RAGEngine(OPENROUTER_API_KEY);
+const ragEngine = ragEngineEnabled ? new RAGEngine(OPENROUTER_API_KEY) : null;
 
 // Routes
 app.post('/api/ingest', upload.single('document'), async (req, res) => {
@@ -76,8 +77,23 @@ app.post('/api/ingest', upload.single('document'), async (req, res) => {
 
 app.post('/api/query', async (req, res) => {
   try {
+    // Add CORS headers
+    res.set({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+
     const { question } = req.body;
     console.log('Query received:', question);
+
+    if (!ragEngine) {
+      return res.json({
+        success: true,
+        answer: 'Testing mode: RAG engine disabled for development. This would normally return an AI-powered answer.',
+        relevantDocs: []
+      });
+    }
 
     const result = await ragEngine.query(question);
     console.log('Query result:', result);

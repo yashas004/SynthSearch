@@ -1,5 +1,5 @@
-// Vercel serverless function - minimal robust API
-module.exports = async (req, res) => {
+// Required for Vercel serverless deployment
+export default function handler(req, res) {
   // Enable CORS for all requests
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -16,8 +16,6 @@ module.exports = async (req, res) => {
 
     // Root route - serve web interface
     if (pathname === '/' && req.method === 'GET') {
-      // For Vercel, we need to serve static files differently
-      // For now, return a simple HTML response
       res.setHeader('Content-Type', 'text/html');
       res.status(200).send(`
 <!DOCTYPE html>
@@ -55,7 +53,6 @@ module.exports = async (req, res) => {
     if (pathname.startsWith('/api/')) {
       if (req.method === 'POST') {
         if (pathname === '/api/ingest') {
-          // Simple file upload response
           return res.status(200).json({
             success: true,
             message: '🎉 File upload endpoint working! SynthSearch API is live.',
@@ -65,7 +62,6 @@ module.exports = async (req, res) => {
         }
 
         if (pathname === '/api/query') {
-          // Simple query response
           return res.status(200).json({
             success: true,
             answer: '✅ SynthSearch is deployed successfully! This is a demo response from our AI-powered knowledge engine.',
@@ -81,7 +77,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Default response for unmatched routes
+    // Default response
     res.status(404).json({
       success: false,
       error: 'Endpoint not found',
@@ -96,4 +92,4 @@ module.exports = async (req, res) => {
       message: error.message
     });
   }
-};
+}

@@ -20,6 +20,7 @@
   "devDependencies": {
     "nodemon": "^3.0.0"
   },
+  "type": "module",
   "keywords": ["search", "RAG", "LLM", "embeddings"],
   "author": "Yashas Yadav",
   "license": "UNLICENSED"

@@ -397,45 +397,87 @@ export default function handler(req, res) {
             fileName.textContent = file.name;
         }
 
-        // Show demo message for upload
-        uploadForm.addEventListener('submit', (e) => {
+        // Actual document upload functionality
+        uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            if (!documentInput.files[0]) return;
 
             // Show loading state
             uploadSpinner.style.display = 'inline-block';
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Processing...';
 
-            // Simulate processing
-            setTimeout(() => {
-                showResponse(ingestResponse, '🎉 Document upload endpoint working! SynthSearch API is live.', true);
+            const file = documentInput.files[0];
+            const formData = new FormData();
+            formData.append('document', file);
 
-                // Reset form on success
-                if (documentInput.files[0]) {
-                    updateFileDisplay(documentInput.files[0]);
+            try {
+                const response = await fetch('/api/ingest', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showResponse(ingestResponse, \`🎉 Successfully ingested "\${file.name}". Processed \${result.chunksProcessed} chunks.\`, true);
+                    updateFileDisplay(file);
+                } else {
+                    showResponse(ingestResponse, \`❌ Error: \${result.error}\`, false);
                 }
-            }, 1000);
+            } catch (error) {
+                console.error('Upload error:', error);
+                showResponse(ingestResponse, '❌ Failed to upload document. Please try again.', false);
+            } finally {
+                // Reset loading state
+                uploadSpinner.style.display = 'none';
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<span class="loading" id="uploadSpinner" style="display: none;"></span>Ingest Document';
+            }
         });
 
-        function simulateQuery() {
-            const question = document.getElementById('question').value;
+        // Actual query functionality
+        queryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const question = document.getElementById('question').value.trim();
+            if (!question) return;
 
             // Show loading state
             querySpinner.style.display = 'inline-block';
             queryBtn.disabled = true;
             queryBtn.textContent = 'Searching...';
 
-            // Simulate processing
-            setTimeout(() => {
-                showResponse(queryResponse, '', true);
-                answerDiv.innerHTML = \`<strong>🤖 Answer:</strong><br>This is a demo response. SynthSearch is deployed successfully on Vercel with AI-powered document processing capabilities.\`;
-                answerDiv.style.display = 'block';
-            }, 1500);
-        }
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question })
+                });
 
-        queryForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            simulateQuery();
+                const result = await response.json();
+
+                if (result.success) {
+                    showResponse(queryResponse, '', true);
+                    answerDiv.innerHTML = \`<strong>🤖 Answer:</strong><br>\${result.answer}\`;
+                    answerDiv.style.display = 'block';
+                } else {
+                    showResponse(queryResponse, \`❌ Error: \${result.error || result.message}\`, false);
+                    answerDiv.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Query error:', error);
+                showResponse(queryResponse, '❌ Failed to process query. Please try again.', false);
+                answerDiv.style.display = 'none';
+            } finally {
+                // Reset loading state
+                querySpinner.style.display = 'none';
+                queryBtn.disabled = false;
+                queryBtn.innerHTML = '<span class="loading" id="querySpinner" style="display: none;"></span>Search';
+            }
         });
 
         function showResponse(element, message, success) {

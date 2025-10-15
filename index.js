@@ -1,15 +1,14 @@
+// Vercel serverless function export
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
 const RAGEngine = require('./ragEngine');
 
+// Initialize Express app
 const app = express();
-const port = 3000;
 
 // Middleware
 app.use(express.json());
-app.use(express.static('public'));
 
 // Set up multer for file uploads
 const storage = multer.memoryStorage(); // Use memory storage for Vercel
@@ -30,14 +29,10 @@ const upload = multer({
 
 // Initialize RAG Engine
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "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";
-if (!OPENROUTER_API_KEY) {
-  console.error('Please set the OPENROUTER_API_KEY environment variable');
-  process.exit(1);
-}
 const ragEngine = new RAGEngine(OPENROUTER_API_KEY);
 
 // Routes
-app.post('/ingest', upload.single('document'), async (req, res) => {
+app.post('/api/ingest', upload.single('document'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'No file uploaded' });
@@ -70,10 +65,13 @@ app.post('/ingest', upload.single('document'), async (req, res) => {
   }
 });
 
-app.post('/query', async (req, res) => {
+app.post('/api/query', async (req, res) => {
   try {
     const { question } = req.body;
+    console.log('Query received:', question);
+
     const result = await ragEngine.query(question);
+    console.log('Query result:', result);
 
     if (result.error) {
       res.status(500).json({ success: false, error: result.error });
@@ -81,10 +79,10 @@ app.post('/query', async (req, res) => {
       res.json({ success: true, answer: result.answer, relevantDocs: result.relevantDocs });
     }
   } catch (error) {
+    console.error('Query error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Knowledge-base Search Engine running at http://localhost:${port}`);
-});
+// Export for Vercel
+module.exports = app;

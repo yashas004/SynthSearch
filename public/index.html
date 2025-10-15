@@ -395,7 +395,7 @@
             formData.append('document', documentInput.files[0]);
 
             try {
-                const response = await fetch('/ingest', {
+                const response = await fetch('/api/ingest', {
                     method: 'POST',
                     body: formData
                 });
@@ -431,7 +431,7 @@
             queryBtn.textContent = 'Searching...';
 
             try {
-                const response = await fetch('/query', {
+                const response = await fetch('/api/query', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

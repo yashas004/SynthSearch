@@ -1,4 +1,4 @@
-// Reliable SynthSearch serverless function with no complex initialization
+// SynthSearch serverless function with PDF text extraction
 const inMemoryStorage = { vectors: [], documents: [] };
 
 async function callGoogleGemini(question, context) {

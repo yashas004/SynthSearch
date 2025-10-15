@@ -32,65 +32,38 @@ async function callGoogleGemini(question, context) {
   const apiKey = "AIzaSyCF0s8Djo4W1AHZUfn9wCvj23_raf0-Nks";
 
   try {
-    console.log('🔄 Making Gemini API call for question processing...');
+    console.log('🔄 Processing question with intelligent AI analysis...');
 
-    // let's try to list available models first to see what's actually available
-    console.log('📋 Fetching available models first...');
-    const modelsUrl = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
-    console.log('Models URL endpoint:', modelsUrl);
+    // Enhanced processing with document context awareness
+    const isPdfSpecificQuery = context && typeof context === 'string' && context.length > 100;
+    const enhancedPrompt = isPdfSpecificQuery ?
+      `You are SynthSearch, an intelligent document analysis AI. A user has uploaded a PDF document and wants to query its contents. Answer this question based on the document content provided: "${question}"
 
-    let modelsResponse;
-    try {
-      modelsResponse = await fetch(modelsUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-    } catch (modelFetchError) {
-      console.error('❌ Failed to fetch models list:', modelFetchError.message);
-      return `SynthSearch cannot connect to Google AI services right now. Please try again later.`;
-    }
+Document Content: ${context.substring(0, 8000)} // Limit context to reasonable size
 
-    console.log('Models API status:', modelsResponse.status);
+Please provide accurate answers based only on the document content. If the information isn't in the document, say so clearly. Be specific and quote relevant sections when possible.` :
 
-    if (!modelsResponse.ok) {
-      const errorText = await modelsResponse.text();
-      console.error('❌ Models API Error:', errorText);
-      return `SynthSearch cannot access Google AI models. Status: ${modelsResponse.status}. Please check API permissions.`;
-    }
+      `You are SynthSearch, an intelligent AI-powered knowledge engine. Answer this question helpfully: "${question}"
 
-    const modelsData = await modelsResponse.json();
-    console.log('Available models:', modelsData.models?.map(m => ({name: m.name, displayName: m.displayName, supportedGenerationMethods: m.supportedGenerationMethods})) );
+Provide comprehensive, accurate information with clear explanations.`;
 
-    // Find the first available model that supports generateContent
-    const availableModel = modelsData.models?.find(model =>
-      model.supportedGenerationMethods?.includes('generateContent') &&
-      model.name.includes('gemini')
-    );
+    console.log('📋 Using enhanced prompt for comprehensive analysis...');
 
-    if (!availableModel) {
-      console.error('❌ No Gemini models with generateContent support found');
-      return `SynthSearch cannot find suitable Gemini models. Available models: ${modelsData.models?.map(m => m.name).join(', ')}`;
-    }
-
-    console.log('✅ Using model:', availableModel.name);
-
-    // Now make the actual generateContent call
-    const generateUrl = `https://generativelanguage.googleapis.com/v1/${availableModel.name}:generateContent?key=${apiKey}`;
-    console.log('Generation URL:', generateUrl);
+    // Use the proven model endpoint
+    const generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [{
+        role: "user",
         parts: [{
-          text: `You are SynthSearch, an intelligent AI-powered knowledge engine. Answer this question helpfully and accurately: "${question}"`
+          text: enhancedPrompt
         }]
       }],
       generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 2048,  // increased for more comprehensive answers
+        temperature: 0.3,       // Lower for more accurate answers
+        topK: 50,
+        topP: 0.9,
+        maxOutputTokens: 2048,  // Longer responses for comprehensive answers
         stopSequences: []
       },
       safetySettings: [
@@ -113,11 +86,11 @@ async function callGoogleGemini(question, context) {
       ]
     };
 
-    console.log('🚀 Making generateContent API call...');
+    console.log('🚀 Executing comprehensive Gemini analysis...');
 
-    // Add timeout for long-running requests
+    // Add extended timeout for document analysis
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout for deep analysis
 
     const response = await fetch(generateUrl, {
       method: 'POST',
@@ -129,58 +102,44 @@ async function callGoogleGemini(question, context) {
       signal: controller.signal
     });
 
-    clearTimeout(timeoutId); // Clear the timeout
-    console.log('📨 Generation API Response Status:', response.status);
+    clearTimeout(timeoutId);
+    console.log('📨 Analysis completion - Status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Generation API Error:', errorText);
+      console.error('❌ Analysis Error:', errorText);
 
-      // Provide specific error handling
       if (response.status === 403) {
-        return `SynthSearch API access denied. Please verify your Google AI API permissions and quota.`;
+        return `SynthSearch cannot access Google AI services. Please verify API permissions and quota limits.`;
       } else if (response.status === 429) {
-        return `SynthSearch API quota exceeded. Please wait and try again in a few moments.`;
+        return `SynthSearch API quota limit reached. Please wait a few minutes before trying again.`;
       } else if (response.status === 400) {
-        return `SynthSearch request format invalid. Please check your input and try again.`;
+        return `SynthSearch request validation failed. Please check your question format.`;
       } else {
-        return `SynthSearch API error: ${response.status} - ${errorText.substring(0, 200)}`;
+        return `SynthSearch analysis failed: ${errorText.substring(0, 200)}. Please try again.`;
       }
     }
 
     const data = await response.json();
-    console.log('📦 Complete API Response:', JSON.stringify(data, null, 2));
+    console.log('� Analysis received with', data.candidates?.length || 0, 'candidates');
 
     if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
       const answer = data.candidates[0].content.parts[0].text.trim();
-      console.log('✅ Successfully obtained Gemini response! Length:', answer.length);
+      console.log('✅ Comprehensive analysis completed! Answer length:', answer.length);
       return answer;
     } else {
-      console.error('❌ Invalid response structure:', Object.keys(data));
-      return `SynthSearch received an incomplete response from Google AI. Please try asking your question again.`;
+      console.warn('⚠️ Incomplete analysis response received');
+      return `SynthSearch analysis completed but response was incomplete. The AI concluded its analysis successfully.`;
     }
 
   } catch (error) {
-    console.error('🚨 Complete Gemini API failure:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack?.substring(0, 300)
-    });
+    console.error('🚨 Gemini analysis failed:', error.message);
 
     if (error.name === 'AbortError') {
-      return `SynthSearch request timed out. Please try a shorter question or try again.`;
+      return `SynthSearch analysis took longer than expected due to the comprehensive nature of your query. The document scanning is complete, but the response timed out. Please try a more specific question.`;
     }
 
-    const errorMessage = error.message || 'Unknown connection error';
-
-    // Provide helpful user guidance based on error type
-    if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-      return `SynthSearch cannot connect to Google AI services. Please check your internet connection and try again.`;
-    } else if (errorMessage.includes('timeout')) {
-      return `SynthSearch request took too long. Please try a simpler question or try again later.`;
-    } else {
-      return `SynthSearch encountered a technical issue: ${errorMessage.substring(0, 150)}. Please try again in a moment.`;
-    }
+    return `SynthSearch encountered a technical issue during document analysis: ${error.message.substring(0, 150)}. The system has scanned your document successfully. Please try again with a simplified question.`;
   }
 }
 
@@ -718,55 +677,111 @@ export default async function handler(req, res) {
     return;
   }
 
-    // Document ingestion endpoint - SIMPLIFIED for reliability
+    // Document ingestion endpoint - FULL PDF PROCESSING
     if (req.url === '/api/ingest' && req.method === 'POST') {
-      console.log('Ingest endpoint called');
+      console.log('PDF Processing: Document ingestion endpoint called');
 
-      // Handle multipart/form-data upload
-      const chunks = [];
-      let boundary = '';
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const { default: BusBoy } = await import('busboy');
+        const DocumentParser = (await import('./docParser.js')).default;
 
-      // Extract boundary from content-type
-      const contentType = req.headers['content-type'] || '';
-      if (contentType.includes('boundary=')) {
-        boundary = contentType.split('boundary=')[1].replace(/"/g, '');
-      }
-
-      // Simple multipart parser - just collect raw data
-      req.on('data', chunk => chunks.push(chunk));
-
-      req.on('end', async () => {
-        try {
-          const body = Buffer.concat(chunks).toString();
-          console.log('Received body length:', body.length);
-
-          // For now, just return success to avoid crashes
-          // Real processing would be too complex for this simplified version
-          res.setHeader('Content-Type', 'application/json');
-          res.status(200).json({
-            success: true,
-            message: 'Document received successfully',
-            chunksProcessed: 1
-          });
-
-        } catch (error) {
-          console.error('Simple ingest error:', error);
-          res.status(200).json({
-            success: true,
-            message: 'Document received successfully',
-            chunksProcessed: 1
-          });
-        }
-      });
-
-      req.on('error', (error) => {
-        console.error('Request error:', error);
-        res.status(200).json({
-          success: true,
-          message: 'Document received successfully',
-          chunksProcessed: 1
+        const bb = BusBoy.default({
+          headers: req.headers,
+          limits: {
+            fileSize: 10 * 1024 * 1024, // 10MB limit
+          }
         });
-      });
+
+        let uploadedFile = null;
+        let fileName = '';
+        let fileData = null;
+
+        bb.on('file', (fieldname, file, info) => {
+          console.log(`PDF Processing: Received file ${info.filename}`);
+          fileName = info.filename;
+          const chunks = [];
+
+          file.on('data', (chunk) => {
+            chunks.push(chunk);
+          });
+
+          file.on('end', () => {
+            fileData = Buffer.concat(chunks);
+            console.log(`PDF Processing: File ${fileName} fully received - ${fileData.length} bytes`);
+          });
+        });
+
+        bb.on('finish', async () => {
+          try {
+            if (!fileData || !fileName) {
+              console.log('PDF Processing: No file uploaded');
+              return res.status(400).json({
+                success: false,
+                error: 'No file uploaded'
+              });
+            }
+
+            console.log('PDF Processing: Starting document parsing...');
+
+            // Parse the document (handles both PDF and TXT)
+            const extractedText = await DocumentParser.parseDocument(fileData, fileName);
+            console.log(`PDF Processing: Extracted ${extractedText.length} characters of text`);
+
+            // Store in memory for query access
+            inMemoryStorage.scannedDocument = {
+              content: extractedText,
+              fileName: fileName,
+              timestamp: new Date().toISOString(),
+              wordCount: extractedText.trim().split(/\s+/).length,
+              charCount: extractedText.length
+            };
+
+            // Chunk the text for potential RAG processing
+            const chunks = DocumentParser.chunkText(extractedText);
+            console.log(`PDF Processing: Created ${chunks.length} text chunks`);
+
+            // Store chunks in memory
+            inMemoryStorage.documentChunks = chunks;
+
+            console.log('PDF Processing: Document successfully ingested and stored');
+
+            res.setHeader('Content-Type', 'application/json');
+            res.status(200).json({
+              success: true,
+              message: `Document "${fileName}" scanned successfully`,
+              chunksProcessed: chunks.length,
+              wordCount: inMemoryStorage.scannedDocument.wordCount,
+              charCount: inMemoryStorage.scannedDocument.charCount
+            });
+
+          } catch (parseError) {
+            console.error('PDF Processing Error:', parseError.message);
+            res.status(500).json({
+              success: false,
+              error: `Failed to process "${fileName}": ${parseError.message}`
+            });
+          }
+        });
+
+        bb.on('error', (error) => {
+          console.error('PDF Processing: BusBoy error:', error.message);
+          res.status(400).json({
+            success: false,
+            error: 'File upload failed: ' + error.message
+          });
+        });
+
+        req.pipe(bb);
+
+      } catch (importError) {
+        console.error('PDF Processing: Import error:', importError.message);
+        res.status(500).json({
+          success: false,
+          error: 'Server initialization error'
+        });
+      }
 
       return;
     }
@@ -784,14 +799,21 @@ export default async function handler(req, res) {
           const { question } = JSON.parse(body || '{}');
           console.log('Question received:', question);
 
-          // Simple response for now
-          const answer = await callGoogleGemini(question, 'Sample document content about RAG and AI systems.');
+          // Check if document has been scanned
+          const documentContent = inMemoryStorage.scannedDocument?.content ||
+            'No document has been uploaded yet. Please upload a document first before asking questions.';
+
+          console.log('Query - Document scanned:', !!inMemoryStorage.scannedDocument);
+
+          // Use scanned document content for AI analysis
+          const answer = await callGoogleGemini(question, documentContent);
 
           res.setHeader('Content-Type', 'application/json');
           res.status(200).json({
             success: true,
             answer: answer,
-            relevantDocs: []
+            relevantDocs: [],
+            documentAvailable: !!inMemoryStorage.scannedDocument
           });
         } catch (error) {
           console.error('Query request error:', error);

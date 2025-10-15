@@ -34,49 +34,43 @@ const ragEngine = new RAGEngine(OPENROUTER_API_KEY);
 // Routes
 app.post('/api/ingest', upload.single('document'), async (req, res) => {
   try {
-    console.log('API route hit - processing ingest request');
+    console.log('🔥 API ROUTE HIT - INGEST REQUEST RECEIVED');
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    console.log('File:', req.file ? `Present: ${req.file.originalname}` : 'Not present');
 
-    if (!req.file) {
-      console.log('No file uploaded');
-      return res.status(400).json({ success: false, error: 'No file uploaded' });
-    }
-
-    console.log('File received:', req.file.originalname, 'Size:', req.file.size);
-
-    // Skip actual processing for now - just test file reception
-    return res.json({
-      success: true,
-      message: `File received: ${req.file.originalname} (${req.file.size} bytes). Processing disabled for testing.`
+    // Add CORS headers
+    res.set({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
     });
 
-    // Temporarily commented out processing
-    /*
-    // For Vercel, we need to process the file from memory
-    const fileBuffer = req.file.buffer;
-    const fileName = req.file.originalname;
-
-    console.log('Processing file:', fileName, 'Size:', fileBuffer.length);
-
-    // Create a temporary file from buffer for processing
-    const tempPath = `/tmp/${Date.now()}-${fileName}`;
-    fs.writeFileSync(tempPath, fileBuffer);
-
-    console.log('Created temp file:', tempPath);
-    const result = await ragEngine.ingestDocument(tempPath);
-
-    // Clean up temp file
-    fs.unlinkSync(tempPath);
-
-    if (result.success) {
-      res.json({ success: true, message: `Document ingested successfully. ${result.chunksProcessed} chunks processed.` });
-    } else {
-      res.status(500).json({ success: false, error: result.error });
+    if (!req.file) {
+      console.log('❌ No file uploaded');
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded',
+        debug: 'File validation failed'
+      });
     }
-    */
+
+    console.log('✅ File received successfully:', req.file.originalname, 'Size:', req.file.size);
+
+    // Test response - immediate success to confirm API is working
+    return res.json({
+      success: true,
+      message: `🎉 File uploaded successfully! Name: ${req.file.originalname} (${req.file.size} bytes)`,
+      debug: 'API route working, file received correctly'
+    });
 
   } catch (error) {
-    console.error('Ingestion error:', error);
-    res.status(500).json({ success: false, error: `Server error: ${error.message}` });
+    console.error('❌ Ingestion error:', error);
+    return res.status(500).json({
+      success: false,
+      error: `Server error: ${error.message}`,
+      debug: 'Something went wrong in processing'
+    });
   }
 });
 

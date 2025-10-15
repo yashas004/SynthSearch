@@ -29,7 +29,7 @@ async function getEmbeddings(text) {
 }
 
 async function callOpenRouter(question, context) {
-  const apiKey = "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"; // New API key provided by user
+  const apiKey = "AIzaSyCF0s8Djo4W1AHZUfn9wCvj23_raf0-Nks"; // New API key provided by user
 
   console.log('Using hardcoded API key for SynthSearch');
 

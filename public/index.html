@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge-Base Search Engine</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .file-input, .query-input, .submit-btn {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .submit-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .submit-btn:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        #answer {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Knowledge-Base Search Engine</h1>
+
+        <div class="section">
+            <h2>Document Ingestion</h2>
+            <form id="uploadForm">
+                <input type="file" id="document" class="file-input" accept=".txt,.pdf" required>
+                <button type="submit" class="submit-btn">Ingest Document</button>
+            </form>
+            <div id="ingestResponse" class="response"></div>
+        </div>
+
+        <div class="section">
+            <h2>Query Documents</h2>
+            <form id="queryForm">
+                <input type="text" id="question" class="query-input" placeholder="Enter your question" required>
+                <button type="submit" class="submit-btn">Search</button>
+            </form>
+            <div id="queryResponse" class="response"></div>
+            <div id="answer"></div>
+        </div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const queryForm = document.getElementById('queryForm');
+        const ingestResponse = document.getElementById('ingestResponse');
+        const queryResponse = document.getElementById('queryResponse');
+        const answerDiv = document.getElementById('answer');
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('document', document.getElementById('document').files[0]);
+
+            try {
+                const response = await fetch('/ingest', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                showResponse(ingestResponse, result.success ? result.message : result.error, result.success);
+            } catch (error) {
+                showResponse(ingestResponse, 'Error uploading document', false);
+            }
+        });
+
+        queryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const question = document.getElementById('question').value;
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showResponse(queryResponse, '', true);
+                    answerDiv.innerHTML = `<strong>Answer:</strong><br>${result.answer}`;
+                    answerDiv.style.display = 'block';
+                } else {
+                    showResponse(queryResponse, result.error, false);
+                    answerDiv.style.display = 'none';
+                }
+            } catch (error) {
+                showResponse(queryResponse, 'Error querying documents', false);
+                answerDiv.style.display = 'none';
+            }
+        });
+
+        function showResponse(element, message, success) {
+            element.textContent = message;
+            element.className = `response ${success ? 'success' : 'error'}`;
+            element.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -32,55 +32,92 @@ async function callGoogleGemini(question, context) {
   const apiKey = "AIzaSyCF0s8Djo4W1AHZUfn9wCvj23_raf0-Nks";
 
   try {
-    console.log('Calling Gemini API for question:', question);
+    console.log('🔄 Calling Google Gemini API with question:', question.substring(0, 50) + '...');
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Use the most reliable Gemini API endpoint
+    const url = `https://generativelanguage.googleapis.com/v1/GLM-1.5-flash:generateContent?key=${apiKey}`;
+
+    const requestBody = {
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `You are SynthSearch, a helpful AI-powered knowledge engine. Answer this question clearly: ${question}`
+        }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+        stopSequences: []
+      },
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        }
+      ]
+    };
+
+    console.log('📡 Making fetch request to Google Gemini API...');
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `You are SynthSearch, a helpful AI-powered knowledge engine. Answer this question clearly and comprehensively: ${question}`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 500,
-          topP: 0.8,
-          topK: 10
-        }
-      })
+      body: JSON.stringify(requestBody)
     });
 
+    console.log('📨 API Response Status:', response.status);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Gemini API Error:', errorData);
-      throw new Error(`API error: ${errorData.error?.message || 'Unknown error'}`);
+      const errorText = await response.text();
+      console.error('❌ Gemini API Error Response:', errorText);
+
+      // Try a simple fetch without parameters to check API key
+      const simpleUrl = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
+      const modelsResponse = await fetch(simpleUrl);
+      if (modelsResponse.ok) {
+        const models = await modelsResponse.json();
+        console.log('✅ API key works, available models:', models.models?.map(m => m.name).join(', '));
+      }
+
+      // Return a more informative error message
+      return `SynthSearch API Error: ${response.status} - ${errorText}. Please check the API configuration.`;
     }
 
     const data = await response.json();
+    console.log('📦 Full API Response Structure:', Object.keys(data));
 
-    if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+    if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
       const answer = data.candidates[0].content.parts[0].text.trim();
-      console.log('Gemini API response received');
+      console.log('✅ Successfully extracted Gemini response:', answer.substring(0, 50) + '...');
       return answer;
     } else {
-      throw new Error('No valid response from Gemini API');
+      console.error('❌ Unexpected API response structure. Full response:', JSON.stringify(data, null, 2));
+      return `SynthSearch received an unexpected response format from the AI API. Please try again.`;
     }
 
-  } catch (error) {
-    console.error('Gemini API call failed:', error.message);
+  } catch (fetchError) {
+    console.error('🚨 Fetch/API call failed:', fetchError.message);
+    console.error('🚨 Full error stack:', fetchError.stack?.substring(0, 200));
 
-    // Fallback to basic understanding for system knowledge
-    if (context && typeof context === 'string') {
-      return `I understand you asked about "${question}", but I'm having trouble with the AI API right now. SynthSearch is designed to provide intelligent answers about uploaded documents using advanced AI technology.`;
-    }
-
-    return `I'm SynthSearch, your AI-powered knowledge engine. I can help answer questions about uploaded documents, explain how our AI works, and provide information about document processing capabilities. What would you like to know about?`;
+    // Return a clear error message
+    return `SynthSearch is experiencing API connectivity issues. Error: ${fetchError.message.substring(0, 100)}. Please try again in a moment.`;
   }
 }
 

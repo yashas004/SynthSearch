@@ -29,12 +29,9 @@ async function getEmbeddings(text) {
 }
 
 async function callOpenRouter(question, context) {
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.DEEPSEEK_API_KEY;
+  const apiKey = "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"; // New API key provided by user
 
-  if (!apiKey) {
-    console.error('No OpenRouter API key found in environment variables');
-    return 'SynthSearch is not properly configured. Please check API key setup.';
-  }
+  console.log('Using hardcoded API key for SynthSearch');
 
   try {
     console.log('Making OpenRouter API call with key starting with:', apiKey.substring(0, 20) + '...');

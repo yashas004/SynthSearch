@@ -12,20 +12,21 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Set up multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+const storage = multer.memoryStorage(); // Use memory storage for Vercel
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['text/plain', 'application/pdf'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .txt and .pdf files are allowed'), false);
+    }
   },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + '-' + file.originalname);
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   }
 });
-const upload = multer({ storage });
-
-// Ensure uploads directory exists
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
 
 // Initialize RAG Engine
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "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";
@@ -42,12 +43,21 @@ app.post('/ingest', upload.single('document'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'No file uploaded' });
     }
 
-    const filePath = req.file.path;
-    console.log('Processing file:', filePath);
-    const result = await ragEngine.ingestDocument(filePath);
+    // For Vercel, we need to process the file from memory
+    const fileBuffer = req.file.buffer;
+    const fileName = req.file.originalname;
 
-    // Clean up uploaded file
-    fs.unlinkSync(filePath);
+    console.log('Processing file:', fileName, 'Size:', fileBuffer.length);
+
+    // Create a temporary file from buffer for processing
+    const tempPath = `/tmp/${Date.now()}-${fileName}`;
+    fs.writeFileSync(tempPath, fileBuffer);
+
+    console.log('Created temp file:', tempPath);
+    const result = await ragEngine.ingestDocument(tempPath);
+
+    // Clean up temp file
+    fs.unlinkSync(tempPath);
 
     if (result.success) {
       res.json({ success: true, message: `Document ingested successfully. ${result.chunksProcessed} chunks processed.` });
@@ -56,7 +66,7 @@ app.post('/ingest', upload.single('document'), async (req, res) => {
     }
   } catch (error) {
     console.error('Ingestion error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: `Processing failed: ${error.message}` });
   }
 });
 

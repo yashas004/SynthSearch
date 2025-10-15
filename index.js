@@ -35,7 +35,7 @@ async function callGoogleGemini(question, context) {
     console.log('🔄 Calling Google Gemini API with question:', question.substring(0, 50) + '...');
 
     // Use the correct Google Gemini API endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [{

@@ -58,6 +58,12 @@ function handleError(error, req, res, next) {
 }
 
 export default async function handler(req, res) {
+  console.log('SynthSearch handler called:', {
+    method: req.method,
+    url: req.url,
+    headers: req.headers
+  });
+
   // Enable CORS for all requests
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -65,20 +71,36 @@ export default async function handler(req, res) {
 
   // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     res.status(200).end();
     return;
   }
 
   try {
     const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+    console.log('Processing request for path:', pathname);
 
     // Initialize RAG Engine if not done yet
     if (!ragEngine) {
+      console.log('Initializing RAG engine...');
       const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.DEEPSEEK_API_KEY;
+      console.log('API key status:', openRouterApiKey ? 'present' : 'missing');
+
       if (!openRouterApiKey) {
+        console.error('No API key found in environment');
+        console.log('Available env vars:', Object.keys(process.env).filter(key => key.includes('API') || key.includes('KEY')));
         throw new Error('OPENROUTER_API_KEY or DEEPSEEK_API_KEY environment variable is required');
       }
+
       ragEngine = new RAGEngine(openRouterApiKey, inMemoryStorage);
+      console.log('RAG engine initialized successfully');
+    }
+
+    // Root route - serve web interface
+    if (pathname === '/' && req.method === 'GET') {
+      console.log('Serving web interface');
+      await serveHTML(res);
+      return;
     }
 
     // Root route - serve web interface

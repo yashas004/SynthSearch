@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "index.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "maxLambdaSize": "15mb"
+      }
     }
   ],
   "routes": [
@@ -14,5 +17,10 @@
   ],
   "env": {
     "OPENROUTER_API_KEY": "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"
+  },
+  "functions": {
+    "index.js": {
+      "maxDuration": 30
+    }
   }
 }

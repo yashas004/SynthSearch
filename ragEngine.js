@@ -1,11 +1,11 @@
-const DocumentParser = require('./docParser');
-const EmbeddingGenerator = require('./embeddingGenerator');
-const VectorStore = require('./vectorStore');
-const OpenAI = require('openai');
+import DocumentParser from './docParser.js';
+import EmbeddingGenerator from './embeddingGenerator.js';
+import { VectorStore } from './vectorStore.js';
+import OpenAI from 'openai';
 
 class RAGEngine {
-  constructor(openRouterApiKey) {
-    this.vectorStore = new VectorStore();
+  constructor(openRouterApiKey, inMemoryStorage) {
+    this.vectorStore = new VectorStore(inMemoryStorage); // Use in-memory storage instance
     this.embeddingGenerator = EmbeddingGenerator;
     this.openRouter = new OpenAI({
       apiKey: openRouterApiKey,
@@ -13,10 +13,10 @@ class RAGEngine {
     });
   }
 
-  async ingestDocument(filePath) {
+  async ingestDocument(fileBuffer, fileName) {
     try {
-      // Parse the document
-      const text = await DocumentParser.parseDocument(filePath);
+      // Parse the document from buffer
+      const text = await DocumentParser.parseDocument(fileBuffer, fileName);
 
       // Chunk the text
       const chunks = DocumentParser.chunkText(text);
@@ -26,7 +26,7 @@ class RAGEngine {
 
       // Store in vector store
       for (let i = 0; i < chunks.length; i++) {
-        this.vectorStore.addVector(embeddings[i], chunks[i], { filePath });
+        this.vectorStore.addVector(embeddings[i], chunks[i], { fileName });
       }
 
       return { success: true, chunksProcessed: chunks.length };
@@ -87,4 +87,4 @@ Answer:`;
   }
 }
 
-module.exports = RAGEngine;
+export { RAGEngine };

@@ -1,36 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-
 class VectorStore {
-  constructor(storagePath = './vectorstore.json') {
-    this.storagePath = storagePath;
-    this.data = this.loadData();
-  }
-
-  loadData() {
-    try {
-      if (fs.existsSync(this.storagePath)) {
-        const data = fs.readFileSync(this.storagePath, 'utf8');
-        return JSON.parse(data);
-      }
-    } catch (error) {
-      console.error('Error loading vector store data:', error);
-    }
-    return { vectors: [], documents: [] };
-  }
-
-  saveData() {
-    try {
-      fs.writeFileSync(this.storagePath, JSON.stringify(this.data, null, 2));
-    } catch (error) {
-      console.error('Error saving vector store data:', error);
-    }
+  constructor(inMemoryStorage) {
+    // Use in-memory storage object passed from serverless function
+    this.data = inMemoryStorage || { vectors: [], documents: [] };
   }
 
   addVector(vector, text, meta = {}) {
     const id = Date.now().toString();
     this.data.vectors.push({ id, vector, text, meta });
-    this.saveData();
     return id;
   }
 
@@ -58,8 +34,7 @@ class VectorStore {
 
   clear() {
     this.data = { vectors: [], documents: [] };
-    this.saveData();
   }
 }
 
-module.exports = VectorStore;
+export { VectorStore };

@@ -10,18 +10,24 @@
     "vercel-deploy": "vercel --prod"
   },
   "dependencies": {
+    "@xenova/transformers": "^2.17.0",
+    "busboy": "^1.6.0",
+    "chroma-js": "^2.4.2",
     "express": "^4.18.2",
     "multer": "^1.4.5-lts.1",
-    "pdf-parse": "^1.1.1",
-    "chroma-js": "^2.4.2",
     "openai": "^4.0.0",
-    "@xenova/transformers": "^2.17.0"
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"
   },
   "type": "module",
-  "keywords": ["search", "RAG", "LLM", "embeddings"],
+  "keywords": [
+    "search",
+    "RAG",
+    "LLM",
+    "embeddings"
+  ],
   "author": "Yashas Yadav",
   "license": "UNLICENSED"
 }

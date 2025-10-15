@@ -1,11 +1,19 @@
+# Dependencies (already installed by Vercel)
 node_modules/
-.env
-.git/
-.gitignore
-uploads/
-README.md
-.git/
-.gitignore
-test_docs/
+
+# Local test files
 test_query.js
+test_docs/
+uploads/
+vectorstore.json
+
+# Git and environment files
+.git/
+.gitignore
+.env*
+!vercel.json
+
+# Documentation (optional for production)
+README.md
 .env.example
+LICENSE

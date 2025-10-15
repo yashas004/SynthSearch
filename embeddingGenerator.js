@@ -1,4 +1,4 @@
-const { pipeline } = require('@xenova/transformers');
+import { pipeline } from '@xenova/transformers';
 
 // Load the feature extraction pipeline
 let extractor;
@@ -30,4 +30,4 @@ class EmbeddingGenerator {
   }
 }
 
-module.exports = EmbeddingGenerator;
+export default EmbeddingGenerator;

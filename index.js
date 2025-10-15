@@ -38,7 +38,12 @@ const ragEngine = new RAGEngine(OPENROUTER_API_KEY);
 // Routes
 app.post('/ingest', upload.single('document'), async (req, res) => {
   try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+
     const filePath = req.file.path;
+    console.log('Processing file:', filePath);
     const result = await ragEngine.ingestDocument(filePath);
 
     // Clean up uploaded file
@@ -50,6 +55,7 @@ app.post('/ingest', upload.single('document'), async (req, res) => {
       res.status(500).json({ success: false, error: result.error });
     }
   } catch (error) {
+    console.error('Ingestion error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

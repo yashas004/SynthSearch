@@ -91,10 +91,17 @@ Open `http://localhost:3000` in your browser to access the web interface.
 - Add user authentication and document management
 - Improve answer quality with prompt engineering
 
-## Contributing
+## Prohibited Use
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+This software is proprietary. No one is permitted to:
+- Copy, modify, or distribute this software
+- Use it commercially without written permission
+- Create derivative works
+- Share or publish the source code
 
 ## License
 
-MIT License - see LICENSE file for details
+All Rights Reserved - Copyright (c) 2025 Yashas Yadav
+No permission granted for any use, copying, or distribution without explicit written consent.
+
+See LICENSE file for details.

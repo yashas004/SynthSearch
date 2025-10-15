@@ -29,34 +29,52 @@ async function getEmbeddings(text) {
 }
 
 async function callOpenRouter(question, context) {
-  const openRouterApiKey = "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";
-  if (!openRouterApiKey) return 'API key not configured';
-
   try {
+    console.log('Making OpenRouter API call...');
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openRouterApiKey}`,
-        'Content-Type': 'application/json'
+        'Authorization': 'Bearer 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',
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://synthsearch.vercel.app',
+        'X-Title': 'SynthSearch AI'
       },
       body: JSON.stringify({
         model: 'anthropic/claude-3-haiku:beta',
         messages: [{
           role: 'user',
-          content: `You are SynthSearch, an AI-powered knowledge engine. Answer this question: "${question}". Be helpful and direct.`
+          content: `Hello! I am SynthSearch, an AI-powered knowledge engine. Please answer this question in a helpful way: "${question}"`
         }],
-        max_tokens: 300,
+        max_tokens: 500,
         temperature: 0.7,
       })
     });
 
+    console.log('Response status:', response.status);
+
+    if (!response.ok) {
+      console.error('OpenRouter API error:', response.status, response.statusText);
+      const errorText = await response.text();
+      console.error('Error details:', errorText);
+      return 'I apologize, but there seems to be an issue with the API connection. Please try again.';
+    }
+
     const data = await response.json();
-    console.log('OpenRouter response status:', response.status);
-    console.log('OpenRouter response data:', JSON.stringify(data, null, 2));
-    return data.choices?.[0]?.message?.content || 'SynthSearch is working but could not generate a response.';
+    console.log('API Response received');
+
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      const answer = data.choices[0].message.content;
+      console.log('Got answer:', answer.substring(0, 100) + '...');
+      return answer;
+    } else {
+      console.error('Unexpected API response structure:', JSON.stringify(data, null, 2));
+      return 'I received a response but couldn\'t parse it properly. The API might be experiencing issues.';
+    }
+
   } catch (error) {
-    console.error('OpenRouter error:', error);
-    return 'SynthSearch encountered an error. Please try again.';
+    console.error('OpenRouter API call failed:', error);
+    return `I encountered an error while processing your question. This is likely a temporary issue - please try asking again in a moment. Error: ${error.message}`;
   }
 }
 

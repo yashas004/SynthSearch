@@ -32,23 +32,65 @@ async function callGoogleGemini(question, context) {
   const apiKey = "AIzaSyCF0s8Djo4W1AHZUfn9wCvj23_raf0-Nks";
 
   try {
-    console.log('🔄 Calling Google Gemini API with question:', question.substring(0, 50) + '...');
+    console.log('🔄 Making Gemini API call for question processing...');
 
-    // Use the correct Google Gemini API endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${apiKey}`;
+    // let's try to list available models first to see what's actually available
+    console.log('📋 Fetching available models first...');
+    const modelsUrl = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
+    console.log('Models URL endpoint:', modelsUrl);
+
+    let modelsResponse;
+    try {
+      modelsResponse = await fetch(modelsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (modelFetchError) {
+      console.error('❌ Failed to fetch models list:', modelFetchError.message);
+      return `SynthSearch cannot connect to Google AI services right now. Please try again later.`;
+    }
+
+    console.log('Models API status:', modelsResponse.status);
+
+    if (!modelsResponse.ok) {
+      const errorText = await modelsResponse.text();
+      console.error('❌ Models API Error:', errorText);
+      return `SynthSearch cannot access Google AI models. Status: ${modelsResponse.status}. Please check API permissions.`;
+    }
+
+    const modelsData = await modelsResponse.json();
+    console.log('Available models:', modelsData.models?.map(m => ({name: m.name, displayName: m.displayName, supportedGenerationMethods: m.supportedGenerationMethods})) );
+
+    // Find the first available model that supports generateContent
+    const availableModel = modelsData.models?.find(model =>
+      model.supportedGenerationMethods?.includes('generateContent') &&
+      model.name.includes('gemini')
+    );
+
+    if (!availableModel) {
+      console.error('❌ No Gemini models with generateContent support found');
+      return `SynthSearch cannot find suitable Gemini models. Available models: ${modelsData.models?.map(m => m.name).join(', ')}`;
+    }
+
+    console.log('✅ Using model:', availableModel.name);
+
+    // Now make the actual generateContent call
+    const generateUrl = `https://generativelanguage.googleapis.com/v1/${availableModel.name}:generateContent?key=${apiKey}`;
+    console.log('Generation URL:', generateUrl);
 
     const requestBody = {
       contents: [{
-        role: "user",
         parts: [{
-          text: `You are SynthSearch, a helpful AI-powered knowledge engine. Answer this question clearly: ${question}`
+          text: `You are SynthSearch, an intelligent AI-powered knowledge engine. Answer this question helpfully and accurately: "${question}"`
         }]
       }],
       generationConfig: {
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,  // increased for more comprehensive answers
         stopSequences: []
       },
       safetySettings: [
@@ -71,53 +113,74 @@ async function callGoogleGemini(question, context) {
       ]
     };
 
-    console.log('📡 Making fetch request to Google Gemini API...');
+    console.log('🚀 Making generateContent API call...');
 
-    const response = await fetch(url, {
+    // Add timeout for long-running requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+    const response = await fetch(generateUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
     });
 
-    console.log('📨 API Response Status:', response.status);
+    clearTimeout(timeoutId); // Clear the timeout
+    console.log('📨 Generation API Response Status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Gemini API Error Response:', errorText);
+      console.error('❌ Generation API Error:', errorText);
 
-      // Try a simple fetch without parameters to check API key
-      const simpleUrl = `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`;
-      const modelsResponse = await fetch(simpleUrl);
-      if (modelsResponse.ok) {
-        const models = await modelsResponse.json();
-        console.log('✅ API key works, available models:', models.models?.map(m => m.name).join(', '));
+      // Provide specific error handling
+      if (response.status === 403) {
+        return `SynthSearch API access denied. Please verify your Google AI API permissions and quota.`;
+      } else if (response.status === 429) {
+        return `SynthSearch API quota exceeded. Please wait and try again in a few moments.`;
+      } else if (response.status === 400) {
+        return `SynthSearch request format invalid. Please check your input and try again.`;
+      } else {
+        return `SynthSearch API error: ${response.status} - ${errorText.substring(0, 200)}`;
       }
-
-      // Return a more informative error message
-      return `SynthSearch API Error: ${response.status} - ${errorText}. Please check the API configuration.`;
     }
 
     const data = await response.json();
-    console.log('📦 Full API Response Structure:', Object.keys(data));
+    console.log('📦 Complete API Response:', JSON.stringify(data, null, 2));
 
     if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
       const answer = data.candidates[0].content.parts[0].text.trim();
-      console.log('✅ Successfully extracted Gemini response:', answer.substring(0, 50) + '...');
+      console.log('✅ Successfully obtained Gemini response! Length:', answer.length);
       return answer;
     } else {
-      console.error('❌ Unexpected API response structure. Full response:', JSON.stringify(data, null, 2));
-      return `SynthSearch received an unexpected response format from the AI API. Please try again.`;
+      console.error('❌ Invalid response structure:', Object.keys(data));
+      return `SynthSearch received an incomplete response from Google AI. Please try asking your question again.`;
     }
 
-  } catch (fetchError) {
-    console.error('🚨 Fetch/API call failed:', fetchError.message);
-    console.error('🚨 Full error stack:', fetchError.stack?.substring(0, 200));
+  } catch (error) {
+    console.error('🚨 Complete Gemini API failure:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.substring(0, 300)
+    });
 
-    // Return a clear error message
-    return `SynthSearch is experiencing API connectivity issues. Error: ${fetchError.message.substring(0, 100)}. Please try again in a moment.`;
+    if (error.name === 'AbortError') {
+      return `SynthSearch request timed out. Please try a shorter question or try again.`;
+    }
+
+    const errorMessage = error.message || 'Unknown connection error';
+
+    // Provide helpful user guidance based on error type
+    if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+      return `SynthSearch cannot connect to Google AI services. Please check your internet connection and try again.`;
+    } else if (errorMessage.includes('timeout')) {
+      return `SynthSearch request took too long. Please try a simpler question or try again later.`;
+    } else {
+      return `SynthSearch encountered a technical issue: ${errorMessage.substring(0, 150)}. Please try again in a moment.`;
+    }
   }
 }
 

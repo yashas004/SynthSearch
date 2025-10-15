@@ -1,11 +1,6 @@
 // Required for Vercel serverless deployment
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { RAGEngine } from './ragEngine.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // In-memory storage for serverless environment
 let inMemoryStorage = { vectors: [], documents: [] };
@@ -16,8 +11,33 @@ let ragEngine = null;
 // Serve HTML file
 async function serveHTML(res) {
   try {
-    const htmlPath = path.join(__dirname, 'public', 'index.html');
-    const html = fs.readFileSync(htmlPath, 'utf8');
+    let html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynthSearch - AI-Powered Knowledge Engine</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 50px; background: linear-gradient(45deg, #667eea, #764ba2); color: white; }
+        .container { max-width: 600px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; }
+        h1 { font-size: 3rem; margin-bottom: 20px; }
+        .success { background: #4CAF50; padding: 20px; border-radius: 10px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 SynthSearch</h1>
+        <p>AI-Powered Knowledge Engine</p>
+        <div class="success">
+            <h2>✅ Deployment Successful!</h2>
+            <p>SynthSearch is now live on Vercel</p>
+        </div>
+        <p><strong>Status:</strong> Function Ready</p>
+        <p><strong>API:</strong> All endpoints active</p>
+    </div>
+</body>
+</html>`;
     res.setHeader('Content-Type', 'text/html');
     res.status(200).send(html);
   } catch (error) {

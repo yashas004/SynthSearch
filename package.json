@@ -1,5 +1,5 @@
 {
-  "name": "knowledge-base-search-engine",
+  "name": "synthsearch",
   "version": "1.0.0",
   "description": "Search across documents and provide synthesized answers using RAG.",
   "main": "index.js",

@@ -1,4 +1,4 @@
-# Knowledge-Base Search Engine
+# SynthSearch
 
 A search engine that provides synthesized answers using Retrieval-Augmented Generation (RAG) across text and PDF documents.
 

@@ -28,12 +28,12 @@ if (!fs.existsSync('uploads')) {
 }
 
 // Initialize RAG Engine
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-if (!DEEPSEEK_API_KEY) {
-  console.error('Please set the DEEPSEEK_API_KEY environment variable');
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "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";
+if (!OPENROUTER_API_KEY) {
+  console.error('Please set the OPENROUTER_API_KEY environment variable');
   process.exit(1);
 }
-const ragEngine = new RAGEngine(DEEPSEEK_API_KEY);
+const ragEngine = new RAGEngine(OPENROUTER_API_KEY);
 
 // Routes
 app.post('/ingest', upload.single('document'), async (req, res) => {

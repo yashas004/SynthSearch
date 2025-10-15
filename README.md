@@ -14,33 +14,16 @@ A search engine that provides synthesized answers using Retrieval-Augmented Gene
 
 - Node.js and Express.js for backend API
 - Transformers.js for generating embeddings (all-MiniLM-L6-v2 model)
-- DeepSeek LLM for answer synthesis
+- Claude via OpenRouter for answer synthesis
 - Simple JSON-based vector storage
 
-## Setup
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd knowledge-base-search-engine
-```
+If you are evaluating this project, note the following:
 
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Set your DeepSeek API key:
-```bash
-export DEEPSEEK_API_KEY="your-deepseek-api-key-here"
-```
-
-4. Start the server:
-```bash
-npm start
-```
-
-The application will be available at `http://localhost:3000`.
+- The application runs on port 3000 by default
+- It requires an OpenRouter API key for LLM functionality
+- Documents are processed and stored as vector embeddings
+- A web interface is available at the root URL
 
 ## Usage
 
@@ -92,7 +75,7 @@ Open `http://localhost:3000` in your browser to access the web interface.
 
 2. **Query Processing**: User questions are converted to embeddings, and the system performs semantic search to find the most relevant document chunks.
 
-3. **Answer Generation**: The retrieved chunks are sent to DeepSeek's LLM along with the original question to generate a synthesized answer.
+3. **Answer Generation**: The retrieved chunks are sent to Claude via OpenRouter along with the original question to generate a synthesized answer.
 
 ## Limitations
 

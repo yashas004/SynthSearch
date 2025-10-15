@@ -19,6 +19,6 @@
     "nodemon": "^3.0.0"
   },
   "keywords": ["search", "RAG", "LLM", "embeddings"],
-  "author": "Your Name",
+  "author": "Yashas Yadav",
   "license": "MIT"
 }

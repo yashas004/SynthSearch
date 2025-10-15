@@ -1,17 +1,16 @@
 const DocumentParser = require('./docParser');
 const EmbeddingGenerator = require('./embeddingGenerator');
 const VectorStore = require('./vectorStore');
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 
 class RAGEngine {
-  constructor(deepSeekApiKey) {
+  constructor(openRouterApiKey) {
     this.vectorStore = new VectorStore();
     this.embeddingGenerator = EmbeddingGenerator;
-    this.deepseekConfig = new Configuration({
-      apiKey: deepSeekApiKey,
-      basePath: 'https://api.deepseek.com/v1'
+    this.openRouter = new OpenAI({
+      apiKey: openRouterApiKey,
+      baseURL: 'https://openrouter.ai/api/v1'
     });
-    this.deepseek = new OpenAIApi(this.deepseekConfig);
   }
 
   async ingestDocument(filePath) {
@@ -68,8 +67,8 @@ Question: ${question}
 Answer:`;
 
     try {
-      const response = await this.deepseek.createChatCompletion({
-        model: 'deepseek-chat',
+      const response = await this.openRouter.chat.completions.create({
+        model: 'anthropic/claude-3-haiku:beta',
         messages: [
           {
             role: 'user',
@@ -80,7 +79,7 @@ Answer:`;
         temperature: 0.7,
       });
 
-      return response.data.choices[0].message.content.trim();
+      return response.choices[0].message.content.trim();
     } catch (error) {
       console.error('Error generating answer:', error);
       return 'Sorry, I could not generate an answer at this time.';

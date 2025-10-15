@@ -1,0 +1,5 @@
+node_modules/
+uploads/
+.env
+vectorstore.json
+.DS_Store

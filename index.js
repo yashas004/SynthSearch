@@ -1,14 +1,33 @@
-// Minimal Vercel serverless function - SynthSearch
-export default function handler(req, res) {
+// SynthSearch Vercel serverless function with full RAG functionality
+import { RAGEngine } from './ragEngine.js';
+
+// Initialize RAG Engine and in-memory storage
+const inMemoryStorage = { vectors: [], documents: [] };
+let ragEngine = null;
+
+async function getRAGEngine() {
+  if (!ragEngine) {
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.DEEPSEEK_API_KEY;
+    if (!openRouterApiKey) {
+      throw new Error('OPENROUTER_API_KEY or DEEPSEEK_API_KEY environment variable is required');
+    }
+    ragEngine = new RAGEngine(openRouterApiKey, inMemoryStorage);
+  }
+  return ragEngine;
+}
+
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
+
+  try {
 
   // Main interactive application
   if (req.url === '/' && req.method === 'GET') {
@@ -531,11 +550,125 @@ export default function handler(req, res) {
     return;
   }
 
-  // Default 404
-  res.setHeader('Content-Type', 'application/json');
-  res.status(404).json({
-    success: false,
-    error: 'Endpoint not found',
-    availableRoutes: ['GET /', 'GET /api/stats', 'POST /api/test']
+    // Document ingestion endpoint
+    if (req.url === '/api/ingest' && req.method === 'POST') {
+      const rag = await getRAGEngine();
+
+      // Handle multipart/form-data upload
+      const BusBoy = await import('busboy');
+      const bb = BusBoy.default({ headers: req.headers });
+
+      let fileBuffer = null;
+      let fileName = '';
+      let fieldName = '';
+
+      bb.on('file', (name, file, info) => {
+        fieldName = name;
+        fileName = info.filename;
+        const chunks = [];
+        file.on('data', chunk => chunks.push(chunk));
+        file.on('end', () => {
+          fileBuffer = Buffer.concat(chunks);
+        });
+      });
+
+      bb.on('finish', async () => {
+        try {
+          if (!fileBuffer || !fileName) {
+            res.status(400).json({
+              success: false,
+              error: 'No file uploaded or file is empty'
+            });
+            return;
+          }
+
+          // Check file size (limit to 10MB)
+          if (fileBuffer.length > 10 * 1024 * 1024) {
+            res.status(400).json({
+              success: false,
+              error: 'File size exceeds 10MB limit'
+            });
+            return;
+          }
+
+          const result = await rag.ingestDocument(fileBuffer, fileName);
+          res.setHeader('Content-Type', 'application/json');
+          res.status(200).json(result);
+        } catch (error) {
+          console.error('Ingest error:', error);
+          res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to process document'
+          });
+        }
+      });
+
+      bb.on('error', (error) => {
+        console.error('BusBoy error:', error);
+        res.status(400).json({
+          success: false,
+          error: 'Failed to parse upload'
+        });
+      });
+
+      req.pipe(bb);
+      return;
+    }
+
+    // Query endpoint
+    if (req.url === '/api/query' && req.method === 'POST') {
+      try {
+        const rag = await getRAGEngine();
+        const body = await getRequestBody(req);
+        const { question } = JSON.parse(body);
+
+        if (!question || question.trim().length === 0) {
+          res.status(400).json({
+            success: false,
+            error: 'Question is required'
+          });
+          return;
+        }
+
+        const result = await rag.query(question);
+        res.setHeader('Content-Type', 'application/json');
+        res.status(200).json({
+          success: !!result.answer,
+          answer: result.answer,
+          relevantDocs: result.relevantDocs || []
+        });
+      } catch (error) {
+        console.error('Query error:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message || 'Failed to process query'
+        });
+      }
+      return;
+    }
+
+    // Default 404
+    res.setHeader('Content-Type', 'application/json');
+    res.status(404).json({
+      success: false,
+      error: 'Endpoint not found',
+      availableRoutes: ['GET /', 'GET /api/stats', 'POST /api/ingest', 'POST /api/query']
+    });
+
+  } catch (error) {
+    console.error('Handler error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+}
+
+async function getRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
   });
 }

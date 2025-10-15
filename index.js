@@ -28,81 +28,73 @@ async function getEmbeddings(text) {
   return embedding;
 }
 
-async function callOpenRouter(question, context) {
-  const apiKey = "AIzaSyCF0s8Djo4W1AHZUfn9wCvj23_raf0-Nks"; // New API key provided by user
+async function callGoogleGemini(question, context) {
+  const apiKey = "AIzaSyCF0s8Djo4W1AHZUfn9wCvj23_raf0-Nks"; // Google Gemini API key
 
-  console.log('Using hardcoded API key for SynthSearch');
+  console.log('Using Google Gemini API key for SynthSearch');
 
   try {
-    console.log('Making OpenRouter API call with key starting with:', apiKey.substring(0, 20) + '...');
+    console.log('Making Google Gemini API call...');
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://synthsearch.vercel.app',
-        'X-Title': 'SynthSearch AI'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3-haiku:beta',
-        messages: [{
-          role: 'user',
-          content: `Hello! I am SynthSearch, an AI-powered knowledge engine. Please answer this question in a helpful and direct way: "${question}"`
-        }],
-        max_tokens: 500,
-        temperature: 0.7,
-        max_tokens: 300,
+        contents: [{
+          parts: [{
+            text: `Hello! I am SynthSearch, an AI-powered knowledge engine. Please answer this question in a helpful and direct way: "${question}"`
+          }]
+        }]
       })
     });
 
-    console.log('OpenRouter Response status:', response.status);
+    console.log('Google Gemini Response status:', response.status);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenRouter API error details:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText
-      });
+      const errorData = await response.json();
+      console.error('Google Gemini API error details:', errorData);
 
-      if (response.status === 401) {
-        return 'API key is invalid or expired. Please check your OpenRouter API key.';
+      if (response.status === 401 || response.status === 403) {
+        return 'API key is invalid or expired. Please check your Google AI API key.';
       } else if (response.status === 429) {
         return 'API rate limit exceeded. Please try again in a moment.';
       } else if (response.status === 400) {
-        return 'Invalid request. Please check your question and try again.';
+        return `Invalid request: ${errorData.error?.message || 'Bad request'}`;
       } else {
-        return `API error (${response.status}): ${errorText.substring(0, 100)}`;
+        return `API error (${response.status}): ${errorData.error?.message || 'Unknown error'}`;
       }
     }
 
     const data = await response.json();
     console.log('Full API Response:', JSON.stringify(data, null, 2));
 
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      const answer = data.choices[0].message.content;
-      console.log('✅ Successfully extracted answer from response');
-      if (answer && answer.length > 10) {
-        return answer;
+    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+      const answer = data.candidates[0].content.parts[0].text;
+      console.log('✅ Successfully extracted answer from Google Gemini response');
+      if (answer && answer.length > 5) {
+        return answer.trim();
       } else {
         console.warn('Answer too short or empty:', answer);
         return 'I received a very short response. Please try rephrasing your question.';
       }
     } else {
-      console.error('Unexpected API response structure. Available data:', Object.keys(data));
-      return `API returned unexpected format. Error details: ${JSON.stringify(data)}`;
+      console.error('Unexpected Google Gemini API response structure');
+      return `API returned unexpected format. Check API response structure.`;
     }
 
   } catch (error) {
-    console.error('OpenRouter API call failed:', {
+    console.error('Google Gemini API call failed:', {
       message: error.message,
       stack: error.stack?.substring(0, 200)
     });
 
     // Provide more helpful error messages based on error type
     if (error.message.includes('fetch')) {
-      return 'Network error connecting to OpenRouter. Please check your internet connection.';
+      return 'Network error connecting to Google AI. Please check your internet connection.';
     } else if (error.message.includes('timeout')) {
       return 'Request timed out. Please try again.';
     } else {
@@ -712,7 +704,7 @@ export default async function handler(req, res) {
           console.log('Question received:', question);
 
           // Simple response for now
-          const answer = await callOpenRouter(question, 'Sample document content about RAG and AI systems.');
+          const answer = await callGoogleGemini(question, 'Sample document content about RAG and AI systems.');
 
           res.setHeader('Content-Type', 'application/json');
           res.status(200).json({

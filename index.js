@@ -34,10 +34,23 @@ const ragEngine = new RAGEngine(OPENROUTER_API_KEY);
 // Routes
 app.post('/api/ingest', upload.single('document'), async (req, res) => {
   try {
+    console.log('API route hit - processing ingest request');
+
     if (!req.file) {
+      console.log('No file uploaded');
       return res.status(400).json({ success: false, error: 'No file uploaded' });
     }
 
+    console.log('File received:', req.file.originalname, 'Size:', req.file.size);
+
+    // Skip actual processing for now - just test file reception
+    return res.json({
+      success: true,
+      message: `File received: ${req.file.originalname} (${req.file.size} bytes). Processing disabled for testing.`
+    });
+
+    // Temporarily commented out processing
+    /*
     // For Vercel, we need to process the file from memory
     const fileBuffer = req.file.buffer;
     const fileName = req.file.originalname;
@@ -59,9 +72,11 @@ app.post('/api/ingest', upload.single('document'), async (req, res) => {
     } else {
       res.status(500).json({ success: false, error: result.error });
     }
+    */
+
   } catch (error) {
     console.error('Ingestion error:', error);
-    res.status(500).json({ success: false, error: `Processing failed: ${error.message}` });
+    res.status(500).json({ success: false, error: `Server error: ${error.message}` });
   }
 });
 
